@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "noImplicitAny": false,
+    "noUnusedLocals": true,
+    "noImplicitThis": true,
+    "sourceMap": false,
+    "target": "es6",
+    "lib": ["DOM", "ESNext"]
+  },
+  "exclude": [
+    "node_modules",
+    "client"
+  ]
+}

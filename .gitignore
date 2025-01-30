@@ -48,3 +48,7 @@ test.js
 persist
 data
 user.json
+matter-store
+matter-test
+matter-test.json
+matter-test.js
