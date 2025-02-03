@@ -108,5 +108,4 @@ const MatterLogger = {
   },
 }
 
-
 export default { MatterEventEmmiter, MatterLogger };

@@ -7,12 +7,11 @@ import pkg from './package.json'
 
 const bannerText = `/*
   ┌────────────────────────────────────────────────────────────────┐
-  │ MMM-Matter by Fabrizz <3                                       │
-  │ Version ${pkg.version.padEnd(55, ' ')}│
+  │                    MMM-Matter by Fabrizz <3                    │
+  │              https://github.com/Fabrizz/MMM-Matter             │
+  │                        (c) Fabrizio Bap                        │
   │                                                                │
-  ├─ https://github.com/Fabrizz/MMM-Matter                         │
-  ├─ (c) Fabrizio Bap                                              │
-  ├─ Licence: MIT                                                  │                                           
+  ├─ Version ${(pkg.version + " MIT License").padEnd(54, ' ')}│
   └────────────────────────────────────────────────────────────────┘
 */
 

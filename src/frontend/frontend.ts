@@ -1,6 +1,5 @@
-import type { Config } from '../types/config'
-import type { ControlModulesPayload } from '../types/events'
-import Utils from './matterFrontendUtils'
+import type { Config, ControlModulesPayload, SocketNotificationsBackend, SocketNotificationsFrontend } from '../types/module'
+import Utils from './utils'
 
 Module.register<Config>('MMM-Matter', {
   defaults: {
@@ -28,17 +27,48 @@ Module.register<Config>('MMM-Matter', {
   start() {
     Utils.MatterLogger.badge();
     this.VERSION = "0.1.0";
-    Utils.MatterLogger.info("Starting MMM-Matter");
+    this.backendListensTo = new Set();
     this.sendSocketNotification("FRONTEND_READY", {});
   },
 
-  socketNotificationReceived: function (tag: string, payload: unknown) {
+  socketNotificationReceived: function (tag: SocketNotificationsBackend, payload: unknown) {
     switch (tag) {
       case "CONTROL_MODULES":
-        Utils.MatterLogger.info("Received CONTROL_MODULES", payload as ControlModulesPayload);
+        Utils.MatterLogger.debug("Received CONTROL_MODULES", payload); ////////////////////////////////////////////////////////////////////////////////////////////////////
         this.sendNotification((payload as ControlModulesPayload).tag, (payload as ControlModulesPayload).payload);
+        break
+      case "REGISTER_NOTIFICATIONS":
+        Utils.MatterLogger.info(this.translate("CONSOLE_LISTENTO"), payload);
+        (payload as Array<String>).forEach(n => (this.backendListensTo as Set<String>).add(n));
+        break
+      case "LOG2_CONSOLE":
         break
     }
   },
+
+  notificationReceived: function (notification: string, payload: unknown, sender: Module.ModuleProperties<any>) {
+    switch (notification) {
+      case "ALL_MODULES_STARTED":
+        Utils.MatterLogger.info(this.translate("CONSOLE_USEWEB") + ": " + new URL("/matter", window.location.href).href);
+        this.sendSocketNotification("FRONTEND_TRANSLATIONS", this.getTranslationsFromGlobal());
+        break
+    }
+    if ((this.backendListensTo as Set<String>).has(notification)) {
+      Utils.MatterLogger.debug("Notification received to be resent", { notification, payload, sender }); ////////////////////////////////////////////////////////////////////////////////////////////////////
+      this.sendSocketNotification("CONTROL_DEVICE" as SocketNotificationsFrontend, { tag: notification, payload, sender });
+    }
+  },
+
+  /**********************************************************************************************************/
+
+  getTranslationsFromGlobal: function () {
+    let translations = {};
+    try {
+      translations = globalThis.Translator.translations["MMM-Matter"]
+    } catch (error) {
+      Utils.MatterLogger.error(this.translate("TRANSLATOR_GLOBALERROR"), error);
+    }
+    return translations;
+  }
 
 })
