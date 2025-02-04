@@ -1,9 +1,10 @@
+/// <reference path="../types/magicmirror-module.d.ts" />
+
 import * as NodeHelper from 'node_helper'
 import * as Log from 'logger'
 import * as express from 'express';
 import * as path from 'path';
 import { EventEmitter } from 'events';
-import { SocketNotificationsBackend, SocketNotificationsFrontend } from '../types/module';
 
 const PATH_MATTER_STORAGE = path.join(__dirname, "/matter-store");
 const PATH_CLIENT_DIST = path.join(__dirname, "client", "dist");
@@ -12,14 +13,14 @@ module.exports = NodeHelper.create({
   start() {
     Log.log("[\x1b[35mMMM-Matter\x1b[0m] by Fabrizz >> Node helper loaded.");
 
-    /**************************** Declarations */
+    //////////////////////////////////////// Declarations
     this.frontendReady = false;
-    this.apiEventsConsumers = []
+    this.apiEventsConsumers = new Map();
     this.events = new EventEmitter();
     this.frontendShouldListenTo = new Set();
     this.translations = {};
 
-    /**************************** Api routes */
+   //////////////////////////////////////// Api routes
     const router = express.Router();
 
     router.route("/api/state/:deviceId")
@@ -31,17 +32,15 @@ module.exports = NodeHelper.create({
       res.set({
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
-        Connection: "keep-alive",
+        "Connection": "keep-alive",
         "Access-Control-Allow-Origin": "*",
       });
       res.flushHeaders();
       res.write("retry: 10000\n\n");
 
       const clientId = Date.now().toString(16);
-      this.apiEventsConsumers.push({ id: clientId, res });
-      res.on("close", () => 
-        this.apiEventsConsumers = this.apiEventsConsumers.filter((client: { id: string, res: express.Response }) => client.id !== clientId)
-      );
+      this.apiEventsConsumers.set(clientId, res);
+      res.on("close", () => this.apiEventsConsumers.delete(clientId));
     });
 
     router.use("/", express.static(PATH_CLIENT_DIST));
@@ -56,7 +55,7 @@ module.exports = NodeHelper.create({
           Log.info("[\x1b[35mMMM-Matter\x1b[0m] MM2 FRONTEND >> Frontend reload detected.");
         } else {
           this.frontendReady = true;
-          
+
           // START MATTER SERVER
           // START MATTER SERVER
           // START MATTER SERVER
@@ -78,7 +77,7 @@ module.exports = NodeHelper.create({
 
   sendToMM2EventStream(tag: string, payload: unknown = {}) {
     this.sendToClientEventStream("CONTROL_MODULES" as SocketNotificationsBackend, { tag, payload });
-    this.sendSocketNotification("CONTROL_MODULES" as SocketNotificationsBackend, { tag, payload });
+    this.sendSocketNotification("CONTROL_MODULES", { tag, payload });
   },
 
   sendToClientEventStream(tag: string, payload: unknown = {}) {

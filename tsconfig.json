@@ -4,9 +4,10 @@
     "noImplicitAny": false,
     "noUnusedLocals": true,
     "noImplicitThis": true,
-    "sourceMap": false,
+    "sourceMap": true,
     "target": "es6",
-    "lib": ["DOM", "ESNext"]
+    "lib": ["DOM", "ESNext"],
+    "skipLibCheck": true // Remove collision with the included typescript definition for modules. using paths did not work for me.
   },
   "exclude": [
     "node_modules",

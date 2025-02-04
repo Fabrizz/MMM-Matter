@@ -1,4 +1,5 @@
-import type { Config, ControlModulesPayload, SocketNotificationsBackend, SocketNotificationsFrontend } from '../types/module'
+/// <reference path="../types/magicmirror-module.d.ts" />
+import type { Config } from '../types/module'
 import Utils from './utils'
 
 Module.register<Config>('MMM-Matter', {
@@ -18,9 +19,10 @@ Module.register<Config>('MMM-Matter', {
   getDom: function () {
     const d = document.createElement("div");
     d.id = "MTTR-NOTIFICATIONS";
-    const md = document.createComment(`MMM-MTTR Version: ${this.VERSION}`);
-    const mv = document.createComment("MMM-Matter by Fabrizz | https://github.com/Fabrizz/MMM-Matter");
-    d.append(md, mv);
+    d.append(
+      document.createComment(`MMM-MTTR Version: ${this.VERSION}`),
+      document.createComment("MMM-Matter by Fabrizz | https://github.com/Fabrizz/MMM-Matter")
+    );
     return d;
   },
 
@@ -28,20 +30,20 @@ Module.register<Config>('MMM-Matter', {
     Utils.MatterLogger.badge();
     this.VERSION = "0.1.0";
     this.backendListensTo = new Set();
+    this.translations = {};
+
     this.sendSocketNotification("FRONTEND_READY", {});
   },
 
-  socketNotificationReceived: function (tag: SocketNotificationsBackend, payload: unknown) {
+  socketNotificationReceived: function (tag, payload) {
     switch (tag) {
       case "CONTROL_MODULES":
         Utils.MatterLogger.debug("Received CONTROL_MODULES", payload); ////////////////////////////////////////////////////////////////////////////////////////////////////
-        this.sendNotification((payload as ControlModulesPayload).tag, (payload as ControlModulesPayload).payload);
+        this.sendNotification(payload.tag as string, payload.payload);
         break
       case "REGISTER_NOTIFICATIONS":
         Utils.MatterLogger.info(this.translate("CONSOLE_LISTENTO"), payload);
-        (payload as Array<String>).forEach(n => (this.backendListensTo as Set<String>).add(n));
-        break
-      case "LOG2_CONSOLE":
+        (payload as Array<string>).forEach(n => this.backendListensTo.add(n));
         break
     }
   },
@@ -49,17 +51,17 @@ Module.register<Config>('MMM-Matter', {
   notificationReceived: function (notification: string, payload: unknown, sender: Module.ModuleProperties<any>) {
     switch (notification) {
       case "ALL_MODULES_STARTED":
-        Utils.MatterLogger.info(this.translate("CONSOLE_USEWEB") + ": " + new URL("/matter", window.location.href).href);
+        Utils.MatterLogger.info(`${this.translate("CONSOLE_USEWEB")} | ${new URL("/matter", window.location.href).href}`);
         this.sendSocketNotification("FRONTEND_TRANSLATIONS", this.getTranslationsFromGlobal());
         break
     }
-    if ((this.backendListensTo as Set<String>).has(notification)) {
+    if (this.backendListensTo.has(notification)) {
       Utils.MatterLogger.debug("Notification received to be resent", { notification, payload, sender }); ////////////////////////////////////////////////////////////////////////////////////////////////////
-      this.sendSocketNotification("CONTROL_DEVICE" as SocketNotificationsFrontend, { tag: notification, payload, sender });
+      this.sendSocketNotification("CONTROL_DEVICE", { tag: notification, payload, sender });
     }
   },
 
-  /**********************************************************************************************************/
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   getTranslationsFromGlobal: function () {
     let translations = {};
