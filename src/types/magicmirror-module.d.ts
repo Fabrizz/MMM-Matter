@@ -1,3 +1,6 @@
+/// <reference types="node" />
+/// <reference types="express" />
+
 // Custom types for MagicMirror Matter module, extended for this module, may interfer when developing other module
 // From https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/magicmirror-module/index.d.ts
 
@@ -26,7 +29,9 @@ declare namespace Module {
     /** What MM2 should be resent to the backend */
     backendListensTo: Set<string>;
     /** All the translations for the backend */
-    translations: Partial<Record<TranslationKeys, string>> = { };
+    translations: Partial<Record<TranslationKeys, string>>;
+    /** Returns the complete translation object, but from the window object and not directly from MM2 */
+    getTranslationsFromGlobal: () => Partial<Record<TranslationKeys, string>>;
 
     // Subclassable methods
     init: () => void;
@@ -70,16 +75,23 @@ declare module "node_helper" {
     readonly io: any;
     readonly requiresVersion: string;
 
+    /** MMM-Matter Module version */
+    VERSION: string;
     /** If the frontend has already connected once */
     frontendReady: boolean;
     /** Module frontend clients for sending updates */
     apiEventsConsumers: Map<string, Express.Response>;
     /** Matter devices and control events */
-    events: EventEmitter;
+    events: NodeJS.EventEmitter;
     /** Notifications to listen to in te frontend from other modules */
     frontendShouldListenTo: Set<string>;
     /** Translations synced from the frontend */
-    translations: Partial<Record<TranslationKeys, string>> = {};
+    translations: Partial<Record<TranslationKeys, string>>;
+
+    /** Send an event to the module frontend */
+    sendToClientEventStream: (event: string, payload?: any) => void;
+    /** Send an event to the MM2 frontend */
+    sendToMM2EventStream: (event: string, payload?: any) => void;
 
     // Subclassable methods
     init: () => void;
@@ -123,7 +135,7 @@ declare const config: {
 declare type SocketNotificationsFrontend =
   | "FRONTEND_READY"
   | "FRONTEND_TRANSLATIONS"
-  | "CONTROL_DEVICE"
+  | "NOTIFICATION_FORBACKEND"
 
 declare type SocketNotificationsBackend =
   | "CONTROL_MODULES"

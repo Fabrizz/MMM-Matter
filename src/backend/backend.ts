@@ -5,19 +5,22 @@ import * as Log from 'logger'
 import * as express from 'express';
 import * as path from 'path';
 import { EventEmitter } from 'events';
+import { NotificationForBackendPayload } from '../types/module';
 
 const PATH_MATTER_STORAGE = path.join(__dirname, "/matter-store");
 const PATH_CLIENT_DIST = path.join(__dirname, "client", "dist");
+// @ts-expect-error __VERSION__ is replaced by Rollup
+const MODULE_VERSION: string = __VERSION__;
 
 module.exports = NodeHelper.create({
   start() {
     Log.log("[\x1b[35mMMM-Matter\x1b[0m] by Fabrizz >> Node helper loaded.");
 
     //////////////////////////////////////// Declarations
+    this.VERSION = MODULE_VERSION || "";
     this.frontendReady = false;
     this.apiEventsConsumers = new Map();
     this.events = new EventEmitter();
-    this.frontendShouldListenTo = new Set();
     this.translations = {};
 
    //////////////////////////////////////// Api routes
@@ -56,34 +59,29 @@ module.exports = NodeHelper.create({
         } else {
           this.frontendReady = true;
 
-          // START MATTER SERVER
-          // START MATTER SERVER
-          // START MATTER SERVER
-
-          Log.info("[\x1b[35mMMM-Matter\x1b[0m] Starting Matter server, saving data in: " + PATH_MATTER_STORAGE);
+          Log.info("[\x1b[35mMMM-Matter\x1b[0m] Starting Matter server, saving data in: " + PATH_MATTER_STORAGE); // <-------------
           this.sendToClientEventStream("FRONTEND_READY");
-          this.sendSocketNotification("REGISTER_NOTIFICATIONS" as SocketNotificationsBackend, [...this.frontendShouldListenTo]);
         }
         break;
       case "FRONTEND_TRANSLATIONS":
         this.translations = payload;
         this.sendToClientEventStream("FRONTEND_TRANSLATIONS", this.translations);
         break
-      case "CONTROL_DEVICE":
-        Log.debug("CONTROL_DEVICE", payload);
+      case "NOTIFICATION_FORBACKEND":
+        Log.debug("NOTIFICATION_FORBACKEND", `__${(payload as NotificationForBackendPayload).tag} \n`, JSON.stringify(payload)); // <-------------
+        this.events.emit(`__${(payload as NotificationForBackendPayload).tag}`, payload as NotificationForBackendPayload);
         break
     }
   },
 
-  sendToMM2EventStream(tag: string, payload: unknown = {}) {
+  sendToMM2EventStream(tag, payload = {}) {
     this.sendToClientEventStream("CONTROL_MODULES" as SocketNotificationsBackend, { tag, payload });
     this.sendSocketNotification("CONTROL_MODULES", { tag, payload });
   },
 
-  sendToClientEventStream(tag: string, payload: unknown = {}) {
-    this.apiEventsConsumers.forEach((client: { id: string, res: express.Response }) => {
-      client.res.write(`data: ${JSON.stringify({ tag, payload })}\n\n`);
-    });
+  sendToClientEventStream(tag, payload = {}) {
+    this.apiEventsConsumers.forEach((res: express.Response) => 
+      res.write(`data: ${JSON.stringify({ tag, payload })}\n\n`));
   }
 
 })

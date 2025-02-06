@@ -3,6 +3,7 @@ import commonjs from '@rollup/plugin-commonjs'
 import nodeResolve from '@rollup/plugin-node-resolve'
 import terser from '@rollup/plugin-terser'
 import typescript from '@rollup/plugin-typescript'
+import replace from '@rollup/plugin-replace';
 import pkg from './package.json'
 
 const bannerText = `/*
@@ -21,6 +22,10 @@ export default [
   {
     input: './src/frontend/frontend.ts',
     plugins: [
+      replace({
+        __VERSION__: JSON.stringify(pkg.version),
+        preventAssignment: true,
+      }),
       typescript({ module: 'ESNext' }),
       nodeResolve(),
       commonjs(),
@@ -36,6 +41,10 @@ export default [
     input: './src/backend/backend.ts',
     external: ['node_helper', 'logger', '@matter/main', 'express'],
     plugins: [
+      replace({
+        __VERSION__: JSON.stringify(pkg.version),
+        preventAssignment: true,
+      }),
       typescript({ module: 'ESNext' }),
       nodeResolve(),
       terser(),

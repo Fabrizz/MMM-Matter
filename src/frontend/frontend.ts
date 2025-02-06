@@ -2,6 +2,9 @@
 import type { Config } from '../types/module'
 import Utils from './utils'
 
+// @ts-expect-error __VERSION__ is replaced by Rollup
+const MMTR_MODULE_VERSION: string = __VERSION__;
+
 Module.register<Config>('MMM-Matter', {
   defaults: {
   },
@@ -28,7 +31,7 @@ Module.register<Config>('MMM-Matter', {
 
   start() {
     Utils.MatterLogger.badge();
-    this.VERSION = "0.1.0";
+    this.VERSION = MMTR_MODULE_VERSION || "";
     this.backendListensTo = new Set();
     this.translations = {};
 
@@ -56,8 +59,8 @@ Module.register<Config>('MMM-Matter', {
         break
     }
     if (this.backendListensTo.has(notification)) {
-      Utils.MatterLogger.debug("Notification received to be resent", { notification, payload, sender }); ////////////////////////////////////////////////////////////////////////////////////////////////////
-      this.sendSocketNotification("CONTROL_DEVICE", { tag: notification, payload, sender });
+      Utils.MatterLogger.debug("Notification received to be resent", { tag: notification, payload, sender }); ////////////////////////////////////////////////////////////////////////////////////////////////////
+      this.sendSocketNotification("NOTIFICATION_FORBACKEND", { tag: notification, payload, sender });
     }
   },
 
