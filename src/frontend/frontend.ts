@@ -7,6 +7,8 @@ const MMTR_MODULE_VERSION: string = __VERSION__;
 
 Module.register<Config>('MMM-Matter', {
   defaults: {
+    matterLogLevel: "warn",
+    matterLogFormat: "ansi"
   },
 
   getScripts() { return [] },
@@ -35,7 +37,10 @@ Module.register<Config>('MMM-Matter', {
     this.backendListensTo = new Set();
     this.translations = {};
 
-    this.sendSocketNotification("FRONTEND_READY", {});
+    this.sendSocketNotification("FRONTEND_READY", {
+      matterLogFormat: this.config.matterLogFormat,
+      matterLogLevel: this.config.matterLogLevel
+    });
   },
 
   socketNotificationReceived: function (tag, payload) {
@@ -54,7 +59,7 @@ Module.register<Config>('MMM-Matter', {
   notificationReceived: function (notification: string, payload: unknown, sender: Module.ModuleProperties<any>) {
     switch (notification) {
       case "ALL_MODULES_STARTED":
-        Utils.MatterLogger.info(`${this.translate("CONSOLE_USEWEB")} | ${new URL("/matter", window.location.href).href}`);
+        Utils.MatterLogger.info(`${this.translate("CONSOLE_USEWEB")} | ${new URL("/matter", window.location.href).href} ←`);
         this.sendSocketNotification("FRONTEND_TRANSLATIONS", this.getTranslationsFromGlobal());
         break
     }
@@ -65,7 +70,6 @@ Module.register<Config>('MMM-Matter', {
   },
 
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
   getTranslationsFromGlobal: function () {
     let translations = {};
     try {

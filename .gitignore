@@ -38,6 +38,12 @@ settings.json
 # Package Lock File
 package-lock.json
 
+# MMM-Matter storages
+matter-store
+matter-test
+module-store
+module-test
+
 ex.json
 json.json
 badresponse.json

@@ -1,5 +1,6 @@
 /// <reference types="node" />
 /// <reference types="express" />
+/// <reference types="node-persist" />
 
 // Custom types for MagicMirror Matter module, extended for this module, may interfer when developing other module
 // From https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/magicmirror-module/index.d.ts
@@ -87,6 +88,8 @@ declare module "node_helper" {
     frontendShouldListenTo: Set<string>;
     /** Translations synced from the frontend */
     translations: Partial<Record<TranslationKeys, string>>;
+
+    matterServer: import("../backend/matter").default;
 
     /** Send an event to the module frontend */
     sendToClientEventStream: (event: string, payload?: any) => void;

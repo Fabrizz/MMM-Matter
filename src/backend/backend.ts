@@ -5,16 +5,34 @@ import * as Log from 'logger'
 import * as express from 'express';
 import * as path from 'path';
 import { EventEmitter } from 'events';
-import { NotificationForBackendPayload } from '../types/module';
+import { COLORS } from "./utils"
+import { FrontendReadyPayload, NotificationForBackendPayload } from '../types/module';
+import MatterServer from './matter';
 
-const PATH_MATTER_STORAGE = path.join(__dirname, "/matter-store");
+import type NodePersist from 'node-persist';
+/** Module storage, saves user-facing notification definitions */
+const storage: NodePersist.LocalStorage = require('node-persist');
+let storageInitiated = false;
+
+const PATH_MODULE_STORE = path.join(__dirname, "/module-store");
+const PATH_MATTER_STORE = path.join(__dirname, "/matter-store");
 const PATH_CLIENT_DIST = path.join(__dirname, "client", "dist");
+
 // @ts-expect-error __VERSION__ is replaced by Rollup
 const MODULE_VERSION: string = __VERSION__;
+const MODULE_TAG = `${COLORS.reset}[${COLORS.FG.magenta}MMM-Matter${COLORS.reset}] (NodeHelper)`;
+
+storage.init({ dir: PATH_MODULE_STORE }).then(async () => {
+  Log.info(`${MODULE_TAG} Module store initiated. ${COLORS.FG.gray}Path: ${PATH_MODULE_STORE}${COLORS.reset}`);
+
+  const isFirstSession = await storage.getItem("isFirstSession");
+  if (isFirstSession === undefined) { await storage.setItem("isFirstSession", true) }
+  storageInitiated = true;
+});
 
 module.exports = NodeHelper.create({
   start() {
-    Log.log("[\x1b[35mMMM-Matter\x1b[0m] by Fabrizz >> Node helper loaded.");
+    Log.log(`${MODULE_TAG} ${COLORS.FG.black}${COLORS.BG.white} ⠖ MMM-Matter by Fabrizz ${COLORS.reset} Node helper loaded.`);
 
     //////////////////////////////////////// Declarations
     this.VERSION = MODULE_VERSION || "";
@@ -22,16 +40,23 @@ module.exports = NodeHelper.create({
     this.apiEventsConsumers = new Map();
     this.events = new EventEmitter();
     this.translations = {};
+    this.matterServer = null;
 
    //////////////////////////////////////// Api routes
     const router = express.Router();
+    const apiRouter = express.Router();
 
-    router.route("/api/state/:deviceId")
-      .get((q, r) => {
-        r.send({ data: "test", tsr: Date.now(), via: "MMM-MATTER by Fabrizz" });
+    apiRouter.route("/version").get((q, r) => { r.send(this.VERSION) });
+    apiRouter.route("/paths").get((q, r) => { r.send({ PATH_MODULE_STORE, PATH_MATTER_STORE, PATH_CLIENT_DIST }) });
+    apiRouter.route("/translations").get((q, r) => { r.send(this.translations) });
+    apiRouter.route("/store").get(async (q, r) => { r.send(await storage.keys()) });
+    apiRouter.route("/store/:key").get(async (q, r) => { r.send(await storage.getItem(q.params.key)) });
+
+    apiRouter.route("/state/:deviceId").get((q, r) => {
+        r.send({ data: "test", ts: Date.now() });
       })
 
-    router.get("/api/events", async (req, res) => {
+    apiRouter.get("/events", async (req, res) => {
       res.set({
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
@@ -47,19 +72,24 @@ module.exports = NodeHelper.create({
     });
 
     router.use("/", express.static(PATH_CLIENT_DIST));
-    Log.info("[\x1b[35mMMM-Matter\x1b[0m] Serving frontend from: " + PATH_CLIENT_DIST);
+    router.use("/api", apiRouter);
     this.expressApp.use("/matter", router);
+    Log.info(`${MODULE_TAG} Started frontend. ${COLORS.FG.gray}Build path: ${PATH_CLIENT_DIST}${COLORS.reset}`);
   },
 
   socketNotificationReceived: async function (notification: SocketNotificationsFrontend, payload: unknown) {
     switch (notification) {
       case "FRONTEND_READY":
         if (this.frontendReady) {
-          Log.info("[\x1b[35mMMM-Matter\x1b[0m] MM2 FRONTEND >> Frontend reload detected.");
+          Log.info(`${MODULE_TAG} Frontend has been reloaded.`);
         } else {
           this.frontendReady = true;
-
-          Log.info("[\x1b[35mMMM-Matter\x1b[0m] Starting Matter server, saving data in: " + PATH_MATTER_STORAGE); // <-------------
+          this.matterServer = new MatterServer(
+            storage, 
+            PATH_MATTER_STORE,
+            (payload as FrontendReadyPayload).matterLogLevel,
+            (payload as FrontendReadyPayload).matterLogFormat
+          );
           this.sendToClientEventStream("FRONTEND_READY");
         }
         break;
