@@ -89,7 +89,7 @@ declare module "node_helper" {
     /** Translations synced from the frontend */
     translations: Partial<Record<TranslationKeys, string>>;
 
-    matterServer: import("../backend/matter").default;
+    matterServer: import("../backend/matter").MatterServer;
 
     /** Send an event to the module frontend */
     sendToClientEventStream: (event: string, payload?: any) => void;
