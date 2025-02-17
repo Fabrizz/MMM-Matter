@@ -39,14 +39,14 @@ export default [
   },
   {
     input: './src/backend/backend.ts',
-    external: ['node_helper', 'logger', '@matter/main', 'express', 'node-persist',],
+    external: ['node_helper', 'logger', '@matter/main', 'express', 'node-persist'],
     plugins: [
       replace({
         __VERSION__: JSON.stringify(pkg.version),
         preventAssignment: true,
       }),
-      typescript({ module: 'ESNext' }),
       nodeResolve(),
+      typescript({ module: 'ESNext' }),
       terser(),
       banner2(() => bannerText)
     ],

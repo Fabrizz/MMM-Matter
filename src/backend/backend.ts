@@ -7,12 +7,11 @@ import * as path from 'path';
 import { EventEmitter } from 'events';
 import { COLORS } from "./utils"
 import { FrontendReadyPayload, NotificationForBackendPayload } from '../types/module';
-import MatterServer from './matter';
+import { MatterServer } from './matter';
 
 import type NodePersist from 'node-persist';
 /** Module storage, saves user-facing notification definitions */
 const storage: NodePersist.LocalStorage = require('node-persist');
-let storageInitiated = false;
 
 const PATH_MODULE_STORE = path.join(__dirname, "/module-store");
 const PATH_MATTER_STORE = path.join(__dirname, "/matter-store");
@@ -27,7 +26,6 @@ storage.init({ dir: PATH_MODULE_STORE }).then(async () => {
 
   const isFirstSession = await storage.getItem("isFirstSession");
   if (isFirstSession === undefined) { await storage.setItem("isFirstSession", true) }
-  storageInitiated = true;
 });
 
 module.exports = NodeHelper.create({
@@ -88,14 +86,14 @@ module.exports = NodeHelper.create({
             storage, 
             PATH_MATTER_STORE,
             (payload as FrontendReadyPayload).matterLogLevel,
-            (payload as FrontendReadyPayload).matterLogFormat
+            (payload as FrontendReadyPayload).matterLogFormat,
+            MODULE_VERSION,
           );
-          this.sendToClientEventStream("FRONTEND_READY");
         }
         break;
       case "FRONTEND_TRANSLATIONS":
         this.translations = payload;
-        this.sendToClientEventStream("FRONTEND_TRANSLATIONS", this.translations);
+        this.sendToClientEventStream("RELOAD_FRONTEND");
         break
       case "NOTIFICATION_FORBACKEND":
         Log.debug("NOTIFICATION_FORBACKEND", `__${(payload as NotificationForBackendPayload).tag} \n`, JSON.stringify(payload)); // <-------------

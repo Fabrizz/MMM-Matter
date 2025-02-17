@@ -1,15 +1,29 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route } from "react-router";
+import { Routes, Route, BrowserRouter } from "react-router";
 import './index.css'
 
-import Dashboard from "./components/dashboard";
+import Wrapper from "./components/wrapper";
+import DeviceGrid from './components/device-grid';
+import NewDevice from "./components/new-device";
+import Home from './components/home';
+import { TranslationsProvider } from './translations/TranslationsProvider';
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Dashboard />
+    <TranslationsProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<Wrapper />} path="/">
+            <Route path="dashboard" element={<DeviceGrid />} />
+            <Route path="new" element={<NewDevice />} />
+            <Route index element={<Home />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </TranslationsProvider>
   </StrictMode>,
-)
+);
 
 /*
 <Routes>

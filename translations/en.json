@@ -1,5 +1,7 @@
 {
   "CONSOLE_USEWEB": "Use the web interface to configure this module",
   "TRANSLATOR_GLOBALERROR": "Error getting global translations from MM2 (client)",
-  "CONSOLE_LISTENTO": "Added new notifications to listen to: "
+  "CONSOLE_LISTENTO": "Added new notifications to listen to: ",
+  "WEB_OPEN_DOCS": "Open documentation",
+  "WEB_ADD_DEVICE": "New Matter device"
 }

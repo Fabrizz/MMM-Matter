@@ -134,17 +134,6 @@ declare const config: {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
-
-declare type SocketNotificationsFrontend =
-  | "FRONTEND_READY"
-  | "FRONTEND_TRANSLATIONS"
-  | "NOTIFICATION_FORBACKEND"
-
-declare type SocketNotificationsBackend =
-  | "CONTROL_MODULES"
-  | "REGISTER_NOTIFICATIONS"
-
-declare type TranslationKeys =
-  | "CONSOLE_USEWEB"
-  | "TRANSLATOR_GLOBALERROR"
-  | "CONSOLE_LISTENTO"
+declare type SocketNotificationsFrontend = import("./module").SocketNotificationsFrontend;
+declare type SocketNotificationsBackend = import("./module").SocketNotificationsBackend;
+declare type TranslationKeys = import("./module").TranslationKeys;

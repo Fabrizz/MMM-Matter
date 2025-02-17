@@ -1,5 +1,7 @@
 {
   "CONSOLE_USEWEB": "Usa la interfaz web para configurar este módulo",
   "TRANSLATOR_GLOBALERROR": "Error al obtener las traducciones desde MM2 (cliente)",
-  "CONSOLE_LISTENTO": "Se añadieron nuevas notificaciones a las que escuchar: "
+  "CONSOLE_LISTENTO": "Se añadieron nuevas notificaciones a las que escuchar: ",
+  "WEB_OPEN_DOCS": "Abrir documentación",
+  "WEB_ADD_DEVICE": "Nuevo dispositivo Matter"
 }
