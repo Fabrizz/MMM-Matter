@@ -89,6 +89,8 @@ module.exports = NodeHelper.create({
             (payload as FrontendReadyPayload).matterLogFormat,
             MODULE_VERSION,
           );
+
+          this.matterServer.startServerNode();
         }
         break;
       case "FRONTEND_TRANSLATIONS":

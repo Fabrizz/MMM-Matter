@@ -3,10 +3,13 @@ import { COLORS } from "./utils";
 import type { LocalStorage } from "node-persist";
 import type { matterLogLevel, matterLogFormat } from '../types/module';
 
-import { EndpointServer, Environment, ServerNode, StorageService, Time } from "@matter/main";
+import { Endpoint, EndpointServer, Environment, ServerNode, StorageService, Time } from "@matter/main";
 import { FabricAction, logEndpoint } from "@matter/main/protocol";
 import { AggregatorEndpoint } from "@matter/main/endpoints/aggregator";
-import { QrCode, VendorId } from "@matter/main/types";
+import { VendorId } from "@matter/main/types";
+
+import { BridgedDeviceBasicInformationServer } from "@matter/main/behaviors/bridged-device-basic-information";
+import { OnOffPlugInUnitDevice } from "@matter/main/devices/on-off-plug-in-unit";
 
 const MODULE_TAG = `${COLORS.reset}[${COLORS.FG.magenta}MMM-Matter${COLORS.reset}] (${COLORS.FG.green}MatterServer${COLORS.reset})`;
 
@@ -15,10 +18,10 @@ export class MatterServer {
   storageService: StorageService;
   moduleStorageService: LocalStorage;
   mdnsInterface: string;
-  
   moduleVersionString: string;
 
   serverNode: ServerNode<ServerNode.RootEndpoint>;
+  serverAggregator: Endpoint<AggregatorEndpoint>;
 
   constructor(
     moduleStorageService: LocalStorage,
@@ -93,11 +96,17 @@ export class MatterServer {
         uniqueId,
         hardwareVersionString: this.moduleVersionString,
         softwareVersionString: this.moduleVersionString,
+        hardwareVersion: 1,
+        softwareVersion: 1,
         productUrl: "https://github.com/Fabrizz/MMM-Matter",
         reachable: true,
-        location: "MagicMirror2"
       },
     });
+
+    this.serverAggregator = new Endpoint(AggregatorEndpoint, { id: "aggregator" });
+    await this.serverNode.add(this.serverAggregator);
+
+    await this.addSavedEndpointsToServer();
 
     /**
      * This event is triggered when the device is initially commissioned successfully.
@@ -140,13 +149,51 @@ export class MatterServer {
     // Commisioning logic
     if (!this.serverNode.lifecycle.isCommissioned) {
       const { qrPairingCode, manualPairingCode } = this.serverNode.state.commissioning.pairingCodes;
-
-        console.log(QrCode.get(qrPairingCode));
         console.log(`QR Code URL: https://project-chip.github.io/connectedhomeip/qrcode.html?data=${qrPairingCode}`);
         console.log(`Manual pairing code: ${manualPairingCode}`);
     } else {
         console.log("Device is already commissioned. Waiting for controllers to connect ...");
     }
 
+  }
+
+  async addSavedEndpointsToServer() {
+    // Test devices
+    const name = `OnOff light`;
+
+    // @ts-ignore
+    const endpoint = new Endpoint(
+      OnOffPlugInUnitDevice.with(BridgedDeviceBasicInformationServer),
+      {
+        id: `onoff-1`,
+        bridgedDeviceBasicInformation: {
+          nodeLabel: name, // Main end user name for the device
+          productName: name,
+          productLabel: name,
+          serialNumber: `node-matter-1`,
+          reachable: true,
+        },
+      }
+    );
+
+    await this.serverAggregator.add(endpoint);
+
+    /**
+     * Register state change handlers and events of the endpoint for identify and onoff states to react to the commands.
+     *
+     * If the code in these change handlers fail then the change is also rolled back and not executed and an error is
+     * reported back to the controller.
+     */
+    endpoint.events.identify.startIdentifying.on(() => {
+      console.log(`Run identify logic for ${name}, ideally blink a light every 0.5s ...`);
+    });
+
+    endpoint.events.identify.stopIdentifying.on(() => {
+      console.log(`Stop identify logic for ${name} ...`);
+    });
+
+    endpoint.events.onOff.onOff$Changed.on(value => {
+      console.log(`${name} is now ${value ? "ON" : "OFF"}`);
+    });
   }
 }
