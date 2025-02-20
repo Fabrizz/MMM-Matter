@@ -9,10 +9,13 @@
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
     "target": "es6",
-    "lib": ["DOM", "ESNext"]
+    "lib": ["DOM", "ESNext"],
+    "baseUrl": ".",
+    "paths": {
+      "@backend/*": ["src/backend/*"],
+      "@frontend/*": ["src/frontend/*"],
+      "@typesd/*": ["src/types/*"]
+    }
   },
-  "exclude": [
-    "node_modules",
-    "client"
-  ]
+  "exclude": ["node_modules", "client"],
 }

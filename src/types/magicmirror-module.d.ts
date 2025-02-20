@@ -29,8 +29,6 @@ declare namespace Module {
     VERSION: string;
     /** What MM2 should be resent to the backend */
     backendListensTo: Set<string>;
-    /** All the translations for the backend */
-    translations: Partial<Record<TranslationKeys, string>>;
     /** Returns the complete translation object, but from the window object and not directly from MM2 */
     getTranslationsFromGlobal: () => Partial<Record<TranslationKeys, string>>;
 
@@ -94,7 +92,7 @@ declare module "node_helper" {
     /** Send an event to the module frontend */
     sendToClientEventStream: (event: string, payload?: any) => void;
     /** Send an event to the MM2 frontend */
-    sendToMM2EventStream: (event: string, payload?: any) => void;
+    sendToMM2ModuleControl: (event: string, payload?: any) => void;
 
     // Subclassable methods
     init: () => void;

@@ -1,19 +1,21 @@
 import * as Log from 'logger';
 import { COLORS } from "./utils";
-import type { LocalStorage } from "node-persist";
-import type { matterLogLevel, matterLogFormat } from '../types/module';
-
 import { Endpoint, EndpointServer, Environment, ServerNode, StorageService, Time } from "@matter/main";
 import { FabricAction, logEndpoint } from "@matter/main/protocol";
 import { AggregatorEndpoint } from "@matter/main/endpoints/aggregator";
 import { VendorId } from "@matter/main/types";
-
-import { BridgedDeviceBasicInformationServer } from "@matter/main/behaviors/bridged-device-basic-information";
-import { OnOffPlugInUnitDevice } from "@matter/main/devices/on-off-plug-in-unit";
+import { MatterSwitchOnOff } from '@backend/devices/MatterSwitchOnOff';
+import { MatterBaseDevice } from '@backend/devices/MatterBaseDevice';
+import type { LocalStorage } from "node-persist";
+import type { matterLogLevel, matterLogFormat, matterDeviceDefinition } from '@typesd/module';
 
 const MODULE_TAG = `${COLORS.reset}[${COLORS.FG.magenta}MMM-Matter${COLORS.reset}] (${COLORS.FG.green}MatterServer${COLORS.reset})`;
 
 export class MatterServer {
+  sendToClientEventStream: (event: string, payload?: any) => void;
+  sendSocketNotification: (event: string, payload?: any) => void;
+  events: NodeJS.EventEmitter;
+
   environment: Environment;
   storageService: StorageService;
   moduleStorageService: LocalStorage;
@@ -22,8 +24,15 @@ export class MatterServer {
 
   serverNode: ServerNode<ServerNode.RootEndpoint>;
   serverAggregator: Endpoint<AggregatorEndpoint>;
+  endpoints: Map<string, {
+    endpoint: Endpoint<any>;
+    device: matterDeviceDefinition;
+  }> = new Map();
 
   constructor(
+    sendToClientEventStream: (event: string, payload?: any) => void,
+    sendSocketNotification: (event: SocketNotificationsBackend, payload?: any) => void,
+    events: NodeJS.EventEmitter,
     moduleStorageService: LocalStorage,
     matterStorePath: string,
     matterLogLevel: matterLogLevel,
@@ -31,6 +40,10 @@ export class MatterServer {
     moduleVersionString,
     mdnsInterface?: string,
   ) {
+    this.sendToClientEventStream = sendToClientEventStream;
+    this.sendSocketNotification = sendSocketNotification;
+    this.events = events;
+
     this.environment = Environment.default;
     this.environment.vars.set("storage.path", matterStorePath);
     Log.info(`${MODULE_TAG} Store path updated. ${COLORS.FG.gray}${matterStorePath}${COLORS.reset}`);
@@ -43,16 +56,17 @@ export class MatterServer {
     this.storageService = this.environment.get(StorageService);
     this.moduleStorageService = moduleStorageService;
     this.moduleVersionString = moduleVersionString;
+
   }
   
-  async startServerNode() {
+  async createServerNode() {
     const productName = "MMM-Matter Bridge";
     const deviceName = "MMM Bridge";
     const vendorName = "fabrizz";
     const port = 5540;
 
     const deviceStorage = (await this.storageService.open("device")).createContext("data");
-    const passcode = await deviceStorage.get("passcode", 20202021);
+    const passcode = await deviceStorage.get("passcode", 20240303);
     const discriminator = await deviceStorage.get("discriminator", 3840);
     const vendorId = await deviceStorage.get("vendorid", 0xfff1);
     const productId = await deviceStorage.get("productid", 0x8000);
@@ -67,23 +81,18 @@ export class MatterServer {
     });
 
     this.serverNode = await ServerNode.create({
-      // Required: Give the Node a unique ID which is used to store the state of this node
       id: uniqueId,
-
       network: {
         port
       },
-
       commissioning: {
         passcode,
         discriminator,
       },
-
       productDescription: {
         name: deviceName,
         deviceType: AggregatorEndpoint.deviceType,
       },
-
       // Provide defaults for the BasicInformation cluster on the Root endpoint
       basicInformation: {
         vendorName,
@@ -105,8 +114,6 @@ export class MatterServer {
 
     this.serverAggregator = new Endpoint(AggregatorEndpoint, { id: "aggregator" });
     await this.serverNode.add(this.serverAggregator);
-
-    await this.addSavedEndpointsToServer();
 
     /**
      * This event is triggered when the device is initially commissioned successfully.
@@ -143,7 +150,6 @@ export class MatterServer {
       console.log(`Commissioned Fabrics changed event (${action}) for ${fabricIndex} triggered`, this.serverNode.state.commissioning.fabrics[fabricIndex]);
     });
 
-    await this.serverNode.start();
     logEndpoint(EndpointServer.forEndpoint(this.serverNode));
 
     // Commisioning logic
@@ -157,43 +163,41 @@ export class MatterServer {
 
   }
 
-  async addSavedEndpointsToServer() {
-    // Test devices
-    const name = `OnOff light`;
+  async startServerNode() {
+    await this.serverNode.start();
+  }
 
-    // @ts-ignore
-    const endpoint = new Endpoint(
-      OnOffPlugInUnitDevice.with(BridgedDeviceBasicInformationServer),
-      {
-        id: `onoff-1`,
-        bridgedDeviceBasicInformation: {
-          nodeLabel: name, // Main end user name for the device
-          productName: name,
-          productLabel: name,
-          serialNumber: `node-matter-1`,
-          reachable: true,
-        },
-      }
-    );
+  async destroyServerNode() {
+    await this.serverNode.close();
+  }
 
-    await this.serverAggregator.add(endpoint);
+  async eraseServerNode() {
+    await this.serverNode.erase()
+  }
 
-    /**
-     * Register state change handlers and events of the endpoint for identify and onoff states to react to the commands.
-     *
-     * If the code in these change handlers fail then the change is also rolled back and not executed and an error is
-     * reported back to the controller.
-     */
-    endpoint.events.identify.startIdentifying.on(() => {
-      console.log(`Run identify logic for ${name}, ideally blink a light every 0.5s ...`);
-    });
+  async addDeviceToBridge(deviceDefinition: matterDeviceDefinition) {
+    let device: MatterBaseDevice<any>;
 
-    endpoint.events.identify.stopIdentifying.on(() => {
-      console.log(`Stop identify logic for ${name} ...`);
-    });
+    const deviceData: [
+      matterDeviceDefinition,
+      (tag: string, payload?: any) => void,
+      NodeJS.EventEmitter
+    ] = [
+      deviceDefinition,
+      (tag: string, payload = {}) => {
+        this.sendToClientEventStream("CONTROL_MODULES" as SocketNotificationsBackend, { tag, payload });
+        this.sendSocketNotification("CONTROL_MODULES", { tag, payload });
+      },
+      this.events
+    ];
 
-    endpoint.events.onOff.onOff$Changed.on(value => {
-      console.log(`${name} is now ${value ? "ON" : "OFF"}`);
-    });
+    switch (deviceDefinition.matter.type) {
+      case "switch.onoff":
+        device = new MatterSwitchOnOff(...deviceData);
+      break;
+    }
+
+    // @ts-ignore | Type instantiation is excessively deep
+    await this.serverAggregator.add(device.endpoint);
   }
 }

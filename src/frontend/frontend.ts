@@ -1,5 +1,5 @@
 /// <reference path="../types/magicmirror-module.d.ts" />
-import type { Config } from '../types/module'
+import type { Config } from '@typesd/module'
 import Utils from './utils'
 
 // @ts-expect-error __VERSION__ is replaced by Rollup
@@ -35,12 +35,12 @@ Module.register<Config>('MMM-Matter', {
     Utils.MatterLogger.badge();
     this.VERSION = MMTR_MODULE_VERSION || "";
     this.backendListensTo = new Set();
-    this.translations = {};
 
     this.sendSocketNotification("FRONTEND_READY", {
       matterLogFormat: this.config.matterLogFormat,
       matterLogLevel: this.config.matterLogLevel
     });
+    this.sendSocketNotification("FRONTEND_TRANSLATIONS", this.getTranslationsFromGlobal());
   },
 
   socketNotificationReceived: function (tag, payload) {
@@ -60,12 +60,15 @@ Module.register<Config>('MMM-Matter', {
     switch (notification) {
       case "ALL_MODULES_STARTED":
         Utils.MatterLogger.info(`${this.translate("CONSOLE_USEWEB")} | ${new URL("/matter", window.location.href).href} ←`);
-        this.sendSocketNotification("FRONTEND_TRANSLATIONS", this.getTranslationsFromGlobal());
+        break
+      case "MATTER_REGISTER_SUGGESTION":
+        Utils.MatterLogger.debug("Received External Module Suggestion", payload);
+        this.sendSocketNotification("EXTERNAL_SUGGESTION", payload);
         break
     }
     if (this.backendListensTo.has(notification)) {
       Utils.MatterLogger.debug("Notification received to be resent", { tag: notification, payload, sender }); ////////////////////////////////////////////////////////////////////////////////////////////////////
-      this.sendSocketNotification("NOTIFICATION_FORBACKEND", { tag: notification, payload, sender });
+      this.sendSocketNotification("EXTERNAL_CONTROL", { tag: notification, payload, sender });
     }
   },
 

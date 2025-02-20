@@ -24,8 +24,7 @@ const MODULE_TAG = `${COLORS.reset}[${COLORS.FG.magenta}MMM-Matter${COLORS.reset
 storage.init({ dir: PATH_MODULE_STORE }).then(async () => {
   Log.info(`${MODULE_TAG} Module store initiated. ${COLORS.FG.gray}Path: ${PATH_MODULE_STORE}${COLORS.reset}`);
 
-  const isFirstSession = await storage.getItem("isFirstSession");
-  if (isFirstSession === undefined) { await storage.setItem("isFirstSession", true) }
+  //const devices = await storage.getItem("isFirstSession");
 });
 
 module.exports = NodeHelper.create({
@@ -83,35 +82,63 @@ module.exports = NodeHelper.create({
         } else {
           this.frontendReady = true;
           this.matterServer = new MatterServer(
+            (x, y) => this.sendToClientEventStream(x, y),
+            (x, y) => this.sendSocketNotification(x, y),
+            this.events,
             storage, 
             PATH_MATTER_STORE,
             (payload as FrontendReadyPayload).matterLogLevel,
             (payload as FrontendReadyPayload).matterLogFormat,
-            MODULE_VERSION,
+            MODULE_VERSION
           );
 
-          this.matterServer.startServerNode();
+          await this.matterServer.createServerNode();
+
+          await this.matterServer.addDeviceToBridge({
+            id: "onofftest",
+            matter: {
+              type: "switch.onoff",
+              nodeLabel: "Test Switch",
+              productName: "Test Switch",
+              productLabel: "Test Switch",
+              serialNumber: "1234567890",
+            },
+            behavior: {
+              setOnWithNotification: "TEST_SET_ON",
+              setOffWithNotification: "TEST_SET_OFF",
+              onOnSend: "TEST_ON",
+              onOffSend: "TEST_OFF",
+            },
+            description: {
+              isUserDefined: true,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            }
+          })
+
+          await this.matterServer.startServerNode()
+
+          
+          
         }
         break;
       case "FRONTEND_TRANSLATIONS":
         this.translations = payload;
         this.sendToClientEventStream("RELOAD_FRONTEND");
         break
-      case "NOTIFICATION_FORBACKEND":
+      case "EXTERNAL_CONTROL":
         Log.debug("NOTIFICATION_FORBACKEND", `__${(payload as NotificationForBackendPayload).tag} \n`, JSON.stringify(payload)); // <-------------
         this.events.emit(`__${(payload as NotificationForBackendPayload).tag}`, payload as NotificationForBackendPayload);
+        this.sendToClientEventStream("EXTERNAL_CONTROL", payload as NotificationForBackendPayload);
+        break
+      case "EXTERNAL_SUGGESTION":
+        Log.debug("EXTERNAL_SUGGESTION", payload);
         break
     }
-  },
-
-  sendToMM2EventStream(tag, payload = {}) {
-    this.sendToClientEventStream("CONTROL_MODULES" as SocketNotificationsBackend, { tag, payload });
-    this.sendSocketNotification("CONTROL_MODULES", { tag, payload });
   },
 
   sendToClientEventStream(tag, payload = {}) {
     this.apiEventsConsumers.forEach((res: express.Response) => 
       res.write(`data: ${JSON.stringify({ tag, payload })}\n\n`));
-  }
-
+  },
 })
